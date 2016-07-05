@@ -12,8 +12,8 @@
         }
     ],
     "autoload": {
-        "psr-0": {
-            "assistant": "wp-assistant/"
+        "psr-4": {
+            "assistant\\": "framework/"
         }
     }
 }
