@@ -1,0 +1,19 @@
+{
+    "name": "2rajpx/wp-assistant",
+    "description": "A mini framework to help wordpress development",
+    "require": {
+        "jjgrainger/wp-custom-post-type-class": "^1.4"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Tooraj Khatibi",
+            "email": "2rajpx@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-0": {
+            "assistant": "wp-assistant/"
+        }
+    }
+}
