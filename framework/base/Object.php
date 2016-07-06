@@ -31,6 +31,7 @@ class Object {
 	 */
 	final public function __construct(array $config = [])
 	{
+        $this->beforeConstruct($config);
 		if (!empty($config)) {
 			foreach ($config as $property => $value) {
 				$this->$property = $value;
@@ -38,6 +39,15 @@ class Object {
 		}
 		$this->init();
 	}
+
+    /**
+     * Before construct the object.
+     * This method is invoked at the first of the constructor
+     * before the object set options.
+     */
+    public function beforeConstruct()
+    {
+    }
 
 	/**
 	 * Initializes the object.

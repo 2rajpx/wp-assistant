@@ -16,67 +16,6 @@ use CPT;
 class PostTypeBase extends Object{
 
 	/**
-	 * The name of the post type.
-	 * Hooks and other wordpress functions use it.
-	 * @var string $name Holds the name of the post type.
-	 */
-	public $name;
-
-	/**
-	 * This is a human friendly name.
-	 * Default labels use it.
-	 * @var string $singular Holds the singular word of the post type.
-	 */
-	public $singular;
-
-	/**
-	 * This is a human friendly name.
-	 * Default labels use it.
-	 * @var string $plural Holds the plural word of the post type.
-	 */
-	public $plural;
-
-	/**
-	 * Post type slug. This is a robot friendly name.
-	 * All lowercase and using '-' instead of '_' or ' '.
-	 * @var string $slug Holds the slug name of the post type.
-	 */
-	public $slug;
-
-	/**
-	 * User submitted options
-	 * @see https://developer.wordpress.org/reference/functions/get_post_type_labels
-	 * @var array $options Holds the options of the post type.
-	 */
-	public $options = [];
-
-	/**
-	 * Taxonomies associated with the post type
-	 * @var array $taxonomies Holds an array of taxonomies associated with the post type.
-	 */
-	public $taxonomies = [];
-
-	/**
-	 * Defines which columns are to Appear on the admin edit screen.
-	 * Used in add_admin_columns().
-	 * @see http://your-wp-site.com/wp-admin/edit.php?post_type=example
-	 * @var array $columns Columns visible in admin edit screen.
-	 */
-	public $columns = [];
-
-	/**
-	 * User defined functions to populate admin columns.
-	 * @var array $customColumns User functions to populate columns.
-	 */
-	public $customColumns = [];
-
-	/**
-	 * Sortable columns.
-	 * @var array $sortable Define which columns are sortable on the admin edit screen.
-	 */
-	public $sortable = [];
-
-	/**
 	 * @var CPT $_cpt
 	 */
 	private $_cpt;
@@ -150,6 +89,62 @@ class PostTypeBase extends Object{
 	}
 
 	/**
+	 * Before construct the object.
+	 * This method is invoked at the first of the constructor
+	 * before the object set options.
+	 */
+	public function beforeConstruct($options)
+	{
+		// Get post type name
+		$postTypeName = $options['postTypeName'];
+		// Get singular name
+		$singular = $options['singular'];
+		// Get plural name
+		$plural = $options['plural'];
+		// Get slug name
+		$slug = $options['slug'];
+		// Get default options
+		$defaultOptions = static::defaultOptions($singular, $plural, $slug);
+		// Merge custom options with default options
+		$options = ArrayHelper::merge($defaultOptions, $options);
+		// Make instance of CPT
+		$this->_cpt = new CPT([
+			'post_type_name' => $postTypeName,
+			'singular' => $singular,
+			'plural' => $plural,
+			'slug' => $slug,
+		], $options);
+	}
+
+	/**
+	 * Returns the value of the property from $_cpt.
+	 *
+	 * @param string $name the camelCase property name in $_cpt
+	 * @return mixed the property value
+	 * @see __set()
+	 */
+	public function __get($name)
+	{
+		// Make CPT property name
+		$property = Inflector::camel2id($name, '_');
+		return $this->_cpt->$property;
+	}
+
+	/**
+	 * Sets the property of $_cpt.
+	 *
+	 * @param string $name the camelCase property name in $_cpt
+	 * @param mixed $value the property value
+	 * @see __get()
+	 */
+	public function __set($name, $value)
+	{
+		// Make CPT property name
+		$property = Inflector::camel2id($name, '_');
+		$this->_cpt->$property = $value;
+	}
+
+	/**
 	 * Run related method of the CPT object
 	 *
 	 * @param string $method camelCase method name
@@ -157,81 +152,14 @@ class PostTypeBase extends Object{
 	 *
 	 * @return result of CPT::{{method}}()
 	 *
-	 * @throws Exception if there is not method in CPT
-	 *
 	 * @see CPT
 	 */
 	public function __call($method, $args)
 	{
 		// Make CPT method name
 		$method = Inflector::camel2id($method, '_');
-		// Check method existing
-		if (method_exists($this->_cpt, $method)) {
-			// Return result of the method
-			return call_user_func_array([$this->_cpt, $method], $args);
-		} else {
-			// Throw exception
-			throw new Exception("There is not CPT::$method() name", 1);
-		}
-	}
-
-	public function init()
-	{
-		// Get default options
-		$defaultOptions = static::defaultOptions($this->singular, $this->plural, $this->slug);
-		// Merge custom options with default options
-		$this->options = ArrayHelper::merge($defaultOptions, $this->options);
-		// Make instance of CPT
-		$this->_cpt = new CPT([
-			$this->name,
-			$this->singular,
-			$this->plural,
-			$this->slug,
-		], $this->options);
-	}
-
-	/**
-	 * Registers the post type and the the taxonomies associated the post type
-	 * @throws Exception if the taxonomy be invalid
-	 * @see http://codex.wordpress.org/Function_Reference/post_type_exists
-	 * @see https://codex.wordpress.org/Function_Reference/register_post_type
-	 * @see CPT::sortable()
-	 */
-	public function register(){
-		// Get default options
-		$defaultOptions = static::defaultOptions($this->singular, $this->plural, $this->slug);
-		// Merge custom options with default options
-		$this->options = ArrayHelper::merge($defaultOptions, $this->options);
-		// Make instance of CPT
-		$cpt = new CPT([
-			$this->name,
-			$this->singular,
-			$this->plural,
-			$this->slug,
-		], $this->options);
-		// // If the post type does not already exist
-		// if(!post_type_exists($this->name)){
-		// 	// Add action to register the post type
-		// 	add_action('init', function(){
-		// 		// Register the post type
-		// 		register_post_type($this->name, $this->options);
-		// 	});
-		// }
-		// // Attach the taxonomies to the post type
-		// foreach ($this->taxonomies as $taxonomy) {
-		// 	// If the taxonomy is the instance of Taxonomy
-		// 	if($taxonomy instanceof Taxonomy){
-		// 		// Register taxonomy
-		// 		$taxonomy->register();
-		// 	}
-		// 	// If the taxonomy is invalid
-		// 	else{
-		// 		// Throw Exception
-		// 		throw new Exception("Taxonomy must be an instance of Taxonomy class", 1);
-		// 	}
-		// }
-		// Columns cortable
-		// $cpt->sortable();
+		// Return result of the method
+		return call_user_func_array([$this->_cpt, $method], $args);
 	}
 
 }
