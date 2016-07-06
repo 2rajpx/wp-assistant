@@ -3,9 +3,9 @@
 namespace assistant;
 
 use Exception;
-use assistant\base\BaseClass;
+use assistant\base\Object;
 
-class Assistant extends BaseClass{
+class Assistant extends Object{
 
 	protected static $appDir;
 	protected static $language;
