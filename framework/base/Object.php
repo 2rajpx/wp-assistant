@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @link http://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
@@ -15,48 +16,46 @@ use assistant\exception\ExceptionHandler as Exception;
  */
 class Object {
 
-	/**
-	 * Returns the fully qualified name of this class.
-	 * @return string the fully qualified name of this class.
-	 */
-	public static function className()
-	{
-		return get_called_class();
-	}
+    /**
+     * Returns the fully qualified name of this class.
+     * @return string the fully qualified name of this class.
+     */
+    public static function className() {
+        return get_called_class();
+    }
 
-	/**
-	 * Constructor.
-	 *
-	 * @param array $config name-value pairs that will be used to initialize the object properties
-	 */
-	final public function __construct(array $config = [])
-	{
+    /**
+     * Constructor.
+     *
+     * @param array $config name-value pairs that will be used to initialize the object properties
+     */
+    final public function __construct(array $config = []) {
         $this->beforeConstruct($config);
-		if (!empty($config)) {
-			foreach ($config as $property => $value) {
-				$this->$property = $value;
-			}
-		}
-		$this->init();
-	}
+        if (!empty($config)) {
+            foreach ($config as $property => $value) {
+                $this->$property = $value;
+            }
+        }
+        $this->init();
+    }
 
     /**
      * Before construct the object.
      * This method is invoked at the first of the constructor
      * before the object set options.
      */
-    public function beforeConstruct()
-    {
+    public function beforeConstruct() {
+        
     }
 
-	/**
-	 * Initializes the object.
-	 * This method is invoked at the end of the constructor after the object is initialized with the
-	 * given configuration.
-	 */
-	public function init()
-	{
-	}
+    /**
+     * Initializes the object.
+     * This method is invoked at the end of the constructor after the object is initialized with the
+     * given configuration.
+     */
+    public function init() {
+        
+    }
 
     /**
      * Returns the value of an object property.
@@ -69,8 +68,7 @@ class Object {
      * @throws Exception if the property is not defined
      * @see __set()
      */
-    public function __get($name)
-    {
+    public function __get($name) {
         $getter = 'get' . $name;
         if (method_exists($this, $getter)) {
             return $this->$getter();
@@ -92,8 +90,7 @@ class Object {
      * @throws Exception if the property is read-only
      * @see __get()
      */
-    public function __set($name, $value)
-    {
+    public function __set($name, $value) {
         $setter = 'set' . $name;
         if (method_exists($this, $setter)) {
             $this->$setter($value);
@@ -115,8 +112,7 @@ class Object {
      * @return boolean whether the named property is set (not null).
      * @see http://php.net/manual/en/function.isset.php
      */
-    public function __isset($name)
-    {
+    public function __isset($name) {
         $getter = 'get' . $name;
         if (method_exists($this, $getter)) {
             return $this->$getter() !== null;
@@ -137,8 +133,7 @@ class Object {
      * @throws Exception if the property is read only.
      * @see http://php.net/manual/en/function.unset.php
      */
-    public function __unset($name)
-    {
+    public function __unset($name) {
         $setter = 'set' . $name;
         if (method_exists($this, $setter)) {
             $this->$setter(null);
@@ -157,8 +152,7 @@ class Object {
      * @throws Exception when calling unknown method
      * @return mixed the method return value
      */
-    public function __call($name, $params)
-    {
+    public function __call($name, $params) {
         throw new Exception('Calling unknown method: ' . get_class($this) . "::$name()");
     }
 
@@ -176,8 +170,7 @@ class Object {
      * @see canGetProperty()
      * @see canSetProperty()
      */
-    public function hasProperty($name, $checkVars = true)
-    {
+    public function hasProperty($name, $checkVars = true) {
         return $this->canGetProperty($name, $checkVars) || $this->canSetProperty($name, false);
     }
 
@@ -194,8 +187,7 @@ class Object {
      * @return boolean whether the property can be read
      * @see canSetProperty()
      */
-    public function canGetProperty($name, $checkVars = true)
-    {
+    public function canGetProperty($name, $checkVars = true) {
         return method_exists($this, 'get' . $name) || $checkVars && property_exists($this, $name);
     }
 
@@ -212,8 +204,7 @@ class Object {
      * @return boolean whether the property can be written
      * @see canGetProperty()
      */
-    public function canSetProperty($name, $checkVars = true)
-    {
+    public function canSetProperty($name, $checkVars = true) {
         return method_exists($this, 'set' . $name) || $checkVars && property_exists($this, $name);
     }
 
@@ -225,8 +216,7 @@ class Object {
      * @param string $name the method name
      * @return boolean whether the method is defined
      */
-    public function hasMethod($name)
-    {
+    public function hasMethod($name) {
         return method_exists($this, $name);
     }
 
