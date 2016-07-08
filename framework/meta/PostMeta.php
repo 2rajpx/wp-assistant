@@ -20,11 +20,11 @@ class PostMeta {
 	 * @param string $meta meta name
 	 * @return string|array meta value(s)
 	 */
-	public static function get($meta){
-		global $post;
-
+	public static function get($post, $meta){
 		$value = get_post_meta($post->ID, $meta, true);
-
+		if ('zero'==$value) {
+		    $value = 0;
+		}
 		return !empty($value)
 			? static::clean($value)
 			: null;
@@ -34,8 +34,7 @@ class PostMeta {
 	 * Get the saved values
 	 * @return string|array meta value(s)
 	 */
-	public static function getAll(){
-		global $post;
+	public static function getAll($post){
 		return get_post_custom($post->ID);
 	}
 

@@ -2,11 +2,14 @@
 
 namespace assistant\meta;
 
-use assistant\form\Factory;
+use assistant\form\FieldFactory;
+use assistant\form\Field;
 use assistant\meta\PostMeta;
 use assistant\base\Object;
+use assistant\exception\ExceptionHandler as Exception;
 
-class MetaBox extends Object {
+class MetaBox extends Object
+{
     
     /**
      * @var string $name Holds the name of the box
@@ -46,11 +49,14 @@ class MetaBox extends Object {
      * given configuration.
      */
     public function init() {
-        // Build the fields of the form elements
+        if (!$this->name) {
+            throw new Exception("You have to set the name of the meta box", 1);
+        }
+        // Build the fields of the box
         $this->buildFields();
         // Adds actions to their respective WordPress hooks.
-        add_action('admin_init', [&$this, 'addMetaBox']);
-        add_action('save_post', [&$this, 'save']);
+        add_action('add_meta_boxes', [$this, 'box']);
+        add_action('save_post', [$this, 'save']);
     }
     
     /**
@@ -60,22 +66,16 @@ class MetaBox extends Object {
     protected function buildFields() {
         $elements = [];
         // Loop the elements of the box
-        foreach ($this->elements as $key => $element) {
-            // If element is not a field
-            if (!is_string($key)) {
-                // Push the text to $elements
-                $elements[] = $element;
-                // Jump to next element
-                continue;
+        foreach ($this->elements as $element) {
+            // If $element is a field
+            if (is_array($element)) {
+                // Set the prefix of the element
+                $element['prefix'] = $this->name;
+                // Build an instance of the field
+                $element = FieldFactory::getInstance($element);
             }
-            // Build an instance of the field
-            $field = Factory::field($key, $element);
-            // Set the prefix of the element
-            $field->setPrefix($this->name);
-            // Build the binding name to bind meta value
-            $field->bindingName();
-            // Push the field object to $elements
-            $elements[$key] = $field;
+            // Push the element to $elements
+            $elements[] = $element;
         }
         // Set new value to elements 
         $this->elements = $elements;
@@ -84,12 +84,12 @@ class MetaBox extends Object {
     /**
      * Hooks into WordPress admin_init function.
      */
-    public function addMetaBox() {
+    public function box() {
         // Add meta box
         add_meta_box(
             $this->name,
             $this->title,
-            [&$this, 'callback'],
+            [$this, 'callback'],
             $this->screen,
             $this->context,
             $this->priority
@@ -97,32 +97,9 @@ class MetaBox extends Object {
     }
 
     /**
-     * Generates the HTML for the meta box
+     * Save meta box fields in database
      * 
      * @param object $post WordPress post object
-     * @param array $data WordPress meta values
-     */
-    public function callback($post, $data) {
-        // Nonce field for some validation
-        wp_nonce_field(plugin_basename(__FILE__), $this->name . '_meta_box');
-        // Loop through fields
-        foreach ($this->elements as $key => $element) {
-            // If $element is a field object
-            if(!is_string($element)){
-                // Get meta name from field
-                $meta = $element->bindingName();
-                // Get meta value
-                $value = PostMeta::get($meta);
-                // Bind meta value to field
-                $element->setValue($value);
-            }
-            // Print element
-            echo $element;
-        }
-    }
-
-    /**
-     * save meta box fields in database
      */
     public function save($post) {
         global $post;
@@ -133,10 +110,10 @@ class MetaBox extends Object {
         if (!isset($_POST))
             return;
         // Deny save if meta box not found in request
-        if (!isset($_POST[$this->name . '_meta_box']))
+        if (!isset($_POST[$this->name . '_nonce']))
             return;
         // Deny save if our nonce isn't there, or we can't verify it
-        if (!wp_verify_nonce($_POST[$this->name . '_meta_box'], plugin_basename(__FILE__)))
+        if (!wp_verify_nonce($_POST[$this->name . '_nonce'], $this->name . '_data'))
             return;
         // Deny save if post not found
         if (!isset($post->ID))
@@ -150,26 +127,67 @@ class MetaBox extends Object {
             // Deny if our current user can't edit current post
             return;
         // Loop through all fields
-        foreach ($this->elements as $key => $element) {
+        foreach ($this->elements as $element) {
             // Gump to next element if it's not a field object
-            if (!is_string($key))
+            if (!$element instanceof Field)
                 continue;
             // Get meta name
-            $metaName = $element->bindingName();
-            // Get posted value
-            $postedValue = $_POST[$metaName];
-            // Get sanitized value
-            $sanitizedValue = $element->sanitize($postedValue);
+            $metaName = $element->getBindingName();
+            // Set the value of the element
+            $element->value = $_POST[$metaName];
+            // Validate field
+            if (!$element->validate())
+                break;
             // Get valid tags
-            $tags = $element->validTags();
+            $tags = $element->tags;
             // Escape sanitized value to save in db
-            $escapedValue = $tags
-                    // If there are tags must be saved
-                    ? wp_kses($sanitizedValue, $tags)
-                    // Just escape
-                    : esc_attr($sanitizedValue);
+            $escapedValue = !empty($tags)
+                // If there are tags must be saved
+                ? wp_kses($element->value, $tags)
+                // Just escape
+                : esc_attr($element->value);
+            // Set value 'zero' if it's 0
+            if (0===$value) {
+                $value = 'zero';
+            }
             // Save meta in db
-            update_post_meta($post->ID, $metaName, $escapedValue);
+            update_post_meta((int) $post->ID, $metaName, (string) $escapedValue);
+        }
+    }
+
+    /**
+     * Generates the HTML for the meta box
+     * 
+     * @param object $post WordPress post object
+     * @param array $data WordPress meta values
+     */
+    public function callback($post, $data) {
+        // Nonce field for some validation
+        wp_nonce_field($this->name . '_data', $this->name . '_nonce');
+        // Loop through elements
+        foreach ($this->elements as $element) {
+            // If field is a closure
+            if($element instanceof \Closure){
+                // Print result of the callback 
+                echo $element($post, $data);
+            } elseif ($element instanceof Field) {
+                // Check post is new
+                $isNew = $post->post_status === 'auto-draft';
+                // If post is new and has default value
+                if ($isNew) {
+                    echo $element;
+                } else {
+                    // Get meta name from field
+                    $meta = $element->getBindingName();
+                    // Bind meta value to the field
+                    $element->value = PostMeta::get($post, $meta);
+                    // Print element
+                    echo $element;
+                }
+            } else {
+                // Print element
+                echo $element;
+            }
         }
     }
 

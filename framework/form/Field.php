@@ -2,147 +2,233 @@
 
 namespace assistant\form;
 
-use assistant\helper\Magic;
+use assistant\base\Object;
 use assistant\helper\Naming;
 use assistant\helper\ArrayHelper;
 use assistant\helper\Html;
+use assistant\exception\ExceptionHandler as Exception;
 
 /**
  * Field Class
  *
  * Used to help create form field for Wordpress.
  * Field provides concrete implementation for Form Elements.
- * @link http://github.com/jjgrainger/wp-custom-post-type-class/
  *
  * @author Tooraj khatibi <2rajpx@gmail.com>
+ *
  * @link http://2jpx.ir
- * @version 1.4
- * @license http://www.opensource.org/licenses/mit-license.html MIT License
  */
-abstract class Field extends Magic{
+abstract class Field extends Object
+{
+
+    /**
+     * Field name
+     * It is used for field name, id, and label invoking
+     * 
+     * @var string $name Holds the name of the field
+     */
+    public $name;
+
+    /**
+     * Field label
+     * 
+     * @var string $label Holds the label of the field
+     */
+    public $label;
+
+    /**
+     * The hint of the field
+     * 
+     * @var string $hint Holds the hint of the field
+     */
+    public $hint;
+
+    /**
+     * The value of the element
+     * 
+     * @var string $value Holds the value of the element
+     */
+    public $value;
+
+    /**
+     * The template of the field
+     * 
+     * @var string $template Holds the template of the field
+     */
+    public $template;
+
+    /**
+     * The attributes of the field
+     * 
+     * @var array|string $attributes Holds the attributes of the field
+     */
+    public $attributes = [];
+
+    /**
+     * Html tags that are valid to save in database
+     * 
+     * @var array $tags Holds the valid html tags
+     */
+    public $tags = [];
+
+    /**
+     * The rules that reun order by priority
+     * 
+     * @var array $rules Holds the rules of the field
+     */
+    public $rules = [];
+
+    /**
+     * 
+     * The errors
+     * Made by validator callbacks
+     * 
+     * @var array $errors Holds the errors pushed by validators
+     */
+    public $errors = [];
+
+    /**
+     * Prefix of the field
+     * It is concated first of the element name to make it uniquely
+     * 
+     * @var string $prefix Holds the prefix of the field
+     */
+    public $prefix;
 
     /**
      * using for the binding name and the default label of the field
+     *
      * @var field pascal name
      */
     private $_pascalName;
 
     /**
-     * get field attributes and prepare them to show in field
-     */
-    abstract protected function _prepareAttributes();
-
-    /**
-     * constructor of the field
-     * 
-     * @param string $name set name of the field for default label, id ,name in the form and binding value
-     * @param array $options set field options
-     */
-    public function __construct($name, $options = []){
-
-        if(isset($options['name'])){
-            // delete name attribute from $options
-            unset($options['name']);
-        }
-
-        // set field name
-        $this->setName($name);
-        
-        // set field properties
-        $this->setProperties($options);
-
-    }
-
-    /**
-     * make pascal name by name of the element
-     * @return string pascalName
-     */
-    public function pascalName(){
-        if( ! $this->_pascalName){
-            $this->_pascalName = Naming::camelize($this->name());
-        }
-        return $this->_pascalName;
-    }
-
-    /**
-     * the name that integrates the field in server and client
+     * The name that integrates the field in server and client
      * Server using : Get meta name and set element value
      * Client using : Html element name, id, label assign
      * 
-     * @return string binding name
+     * @var string $_bindingName Holds the binding name of the field
      */
-    public function bindingName(){
-        if( ! $bindingName = parent::bindingName()){
-            if($prefix = $this->prefix()){
-                $bindingName.= Naming::camelize($prefix);
-            }
-            $bindingName.= $this->pascalName();
-            $bindingName = Naming::camel2id($bindingName, '_');
-            $this->setBindingName($bindingName);
+    private $_bindingName;
+
+    /**
+     * Prepare attributes to display in the field
+     */
+    abstract protected function prepareAttributes();
+
+    /**
+     * If the template is null, set defalt template
+     */
+    abstract protected function prepareTemplate();
+
+    /**
+     * Initializes the object.
+     * This method is invoked at the end of the constructor after the object is initialized with the
+     * given configuration.
+     */
+    public function init() {
+        // Make _pascalName by name of the element
+        $this->_pascalName = Naming::camelize($this->name);
+        // Make binding name
+        $this->_bindingName = null;
+        if ($prefix = $this->prefix) {
+            // Prepend the prefix to the binding name
+            $this->_bindingName.= Naming::camelize($prefix);
         }
-        return $bindingName;
+        // Append the pascal name to binding name
+        $this->_bindingName.= $this->_pascalName;
+        // Use (_) seperator insetead of camelCase
+        $this->_bindingName = Naming::camel2id($this->_bindingName, '_');
     }
 
     /**
-     * set default label if label is undefined
-     */
-    protected function _prepareLabel(){
-        if( ! $label = $this->label()){
-            $label = Naming::humanize(Naming::camel2words($this->pascalName()));
-            $this->setLabel($label);
-        }
-    }
-
-    /**
-     * Get posted value related to the field and return the sanitized value
-     *
-     * @param string $value The value is posted by client
-     *
-     * @return string Sanitized value
-     */
-    public function sanitize($value) {
-        return $value;
-    }
-
-    /**
-     * prepare some config to render element
+     * Prepare some config and render element
      * 
-     * @return string rendered element
+     * @return string Rendered element
      */
-    public function __tostring(){
-
-        // prepare field label
-        $this->_prepareLabel();
-
-        // prepare html attributes
-        $this->_prepareAttributes();
-
-        // get field properties
-        $properties = $this->properties();
-
-        // get all attributes
-        $attributes = $this->attributes();
-
-        // generate html by attributes
-        $attributes = Html::array2attrs($attributes);
-
-        // set attributes property
-        $properties['attributes'] = $attributes;
-
-        // prepare keys and values to replacing in template
+    public function __tostring() {
+        // Prepare field label
+        $this->prepareLabel();
+        // Prepare html attributes
+        $this->prepareAttributes();
+        // Prepare template
+        $this->prepareTemplate();
+        // Prepare errors
+        $this->prepareErrors();
+        // Generate html by attributes
+        $this->attributes = Html::array2attrs($this->attributes);
+        // Prepare keys and values to replacing in template
         $keys = [];
         $values = [];
-        foreach ($properties as $key => $value) {
+        foreach (get_object_vars($this) as $key => $value) {
             $keys[] = '{{'.$key.'}}';
             $values[] = $value;
         }
+        // Replace {{keys}} in template with property {{values}}
+        return str_replace($keys, $values, $this->template);
+    }
 
-        // get template
-        $template = $this->template();
-        
-        // get template and replace {{key}} in template with property {{value}}
-        return str_replace($keys, $values, $template);
+    /**
+     * 
+     * @return string binding name
+     */
+    public function getBindingName() {
+        return $this->_bindingName;
+    }
 
+    /**
+     * Run the rule of the rules
+     * Each rule can push error to the field or change the value of the field
+     *
+     * @return boolean The result of validation
+     */
+    public function validate() {
+        // Deny if rules array is empty
+        if (empty($this->rules))
+            return true;
+        // If rules are invalid
+        if (!is_array($this->rules))
+            throw new Exception("The rules must be an array of the validator|sanitize rules", 1);
+        // Loop the rules
+        foreach ($this->rules as $rule) {
+            // Run rule
+            $rule instanceof \Closure
+                ? $rule($this)
+                : call_user_func($rule, $this);
+        }
+        // Check the field is valid
+        return !$this->hasErrors();
+    }
+
+    /**
+     * Check the field has error
+     *
+     * @return boolean Does the field have any errors
+     */
+    public function hasErrors() {
+        return empty($this->errors);
+    }
+
+    /**
+     * Prepare label 
+     * Set default label if label is undefined
+     */
+    protected function prepareLabel(){
+        if (!$label = $this->label) {
+            $label = Naming::humanize(Naming::camel2words($this->_pascalName));
+            $this->label = $label;
+        }
+    }
+
+    /**
+     * Prepare errors to display in the field
+     */
+    protected function prepareErrors(){
+        $errors = [];
+        foreach ((array) $this->errors as $error) {
+            $errors[] = "<p style='color:red'>$error</p>";
+        }
+        $this->errors = implode('', $errors);
     }
     
 }

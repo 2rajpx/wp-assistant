@@ -14,7 +14,7 @@ class Html{
 		foreach ((array) $assoc as $key => $value) {
 			$attrs[] = is_string($key)
 				? "$key='$value'"
-				: $value;
+				: trim($value);
 		}
 		return implode(' ', $attrs);
 	}

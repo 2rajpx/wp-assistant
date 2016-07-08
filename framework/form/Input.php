@@ -4,66 +4,65 @@ namespace assistant\form;
 
 class Input extends Field{
 
-	/**
-	 * show/hide type='example' in field attributes
-	 * @var boolean
-	 */
-	protected $_showTypeAttr = true;
+    /**
+     * show/hide type='example' in field attributes
+     * @var boolean
+     */
+    protected $showTypeAttr = true;
 
-	/**
-	 * if there is no template in properties, set defalt template and return it
-	 * 
-	 * @return string the template of the input field
-	 */
-	public function template(){
-		if( ! $template = parent::template() ){
-			$template =
-				"<p>".
-					"<label for='{{name}}'>".
-						"{{label}}".
-					"</label>".
-					"<input {{attributes}}/>".
-				"</p>"
-			;
-			$this->setTemplate($template);
-		}
-		return $template;
-	}
+    /**
+     * Get field attributes and prepare them to show in the field
+     */
+    protected function prepareAttributes() {
+        // Get binding name
+        $bindingName = $this->getBindingName();
+        // Get attributes
+        $attributes = $this->attributes;
+        // Get value
+        $value = $this->value;
+        // Set name
+        $attributes['name'] = $bindingName;
+        // Set id
+        $attributes['id'] = $bindingName;
+        // Set value
+        $attributes['value'] = $value;
+        // Type must be visible
+        if ($this->showTypeAttr) {
+            // Set type attribute
+            $attributes['type'] = static::TYPE;
+        }
+        // Set prepared attributes
+        $this->attributes = $attributes;
+    }
 
-	/**
-	 * get field attributes and prepare them to show in field
-	 */
-	protected function _prepareAttributes(){
-
-		// get attributes
-		$attributes = $this->attributes();
-
-		// get binding name
-		$bindingName = $this->bindingName();
-
-		// get value
-		$value = $this->value();
-
-		// set name
-		$attributes['name'] = $bindingName;
-
-		// set id attribute
-		$attributes['id'] = $bindingName;
-		
-		// set value attribute
-		$attributes['value'] = $value;
-
-		if($this->_showTypeAttr){
-		// type must be visible
-
-			// set type attribute
-			$attributes['type'] = static::TYPE;
-		
-		}
-
-		// set prepared attributes
-		$this->setAttributes($attributes);
-
-	}
+    /**
+     * If the template is null, set defalt template
+     */
+    public function prepareTemplate(){
+        // Deny if template is set
+        if ($this->template)
+            return;
+        // Set default template
+        $this->template =
+            "<table>".
+                "<tr>".
+                    "<td>".
+                        "<label title='{{hint}}' for='{{_bindingName}}'>".
+                            "{{label}}".
+                        "</label>".
+                    "</td>".
+                    "<td>".
+                        "<input {{attributes}}/>".
+                    "</td>".
+                "</tr>".
+                "<tr>".
+                    "<td></td>".
+                    "<td>".
+                        "{{errors}}".
+                    "</td>".
+                "</tr>".
+            "</table>"
+        ;
+    }
 
 }

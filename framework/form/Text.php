@@ -10,6 +10,6 @@ class Text extends Input {
 	 * show/hide type='example' in field attributes
 	 * @var boolean
 	 */
-	protected $_showTypeAttr = false;
+	protected $showTypeAttr = false;
 	
 }
