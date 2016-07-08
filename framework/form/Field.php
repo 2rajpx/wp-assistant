@@ -79,13 +79,12 @@ abstract class Field extends Object
     public $rules = [];
 
     /**
-     * 
      * The errors
      * Made by validator callbacks
      * 
-     * @var array $errors Holds the errors pushed by validators
+     * @var string $errors Holds the errors pushed by validators
      */
-    public $errors = [];
+    public $errors;
 
     /**
      * Prefix of the field
@@ -210,6 +209,34 @@ abstract class Field extends Object
     }
 
     /**
+     * Add error to the field
+     * 
+     * @param string $error The message
+     */
+    public function flash($error) {
+        $_SESSION['wp_assistant']['flashes'][$this->getBindingName()][] = $error;
+    }
+
+    /**
+     * Prepare errors to display in the field
+     */
+    protected function prepareErrors(){
+        // Get binding name
+        $bindingName = $this->getBindingName();
+        // Get flashes
+        $errors = ArrayHelper::getValue($_SESSION, "wp_assistant.flashes.$bindingName");
+        // Check errors
+        if($errors){
+            $html = [];
+            foreach ($errors as $error) {
+                $html[] = "<p style='color:red'>$error</p>";
+            }
+            $this->errors = implode('', $html);
+            unset($_SESSION['wp_assistant']['flashes'][$bindingName]);
+        }
+    }
+
+    /**
      * Prepare label 
      * Set default label if label is undefined
      */
@@ -218,17 +245,6 @@ abstract class Field extends Object
             $label = Naming::humanize(Naming::camel2words($this->_pascalName));
             $this->label = $label;
         }
-    }
-
-    /**
-     * Prepare errors to display in the field
-     */
-    protected function prepareErrors(){
-        $errors = [];
-        foreach ((array) $this->errors as $error) {
-            $errors[] = "<p style='color:red'>$error</p>";
-        }
-        $this->errors = implode('', $errors);
     }
     
 }

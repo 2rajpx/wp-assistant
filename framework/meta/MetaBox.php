@@ -62,11 +62,12 @@ class MetaBox extends Object
         // Build the fields of the box
         $this->buildFields();
         // Adds actions to their respective WordPress hooks.
-        add_action('add_meta_boxes', [$this, 'box']);
-        add_action('save_post', [$this, 'save']);
+        add_action('add_meta_boxes', [&$this, 'box']);
+        add_action('save_post', [&$this, 'save']);
     }
 
     /**
+     * Get a specific meta value
      * 
      * @param string $fieldName The name of the field
      * @param WP_Post $post The post object
@@ -125,7 +126,7 @@ class MetaBox extends Object
         add_meta_box(
             $this->name,
             $this->title,
-            [$this, 'callback'],
+            [&$this, 'callback'],
             $this->screen,
             $this->context,
             $this->priority
@@ -172,22 +173,22 @@ class MetaBox extends Object
             // Set the value of the element
             $element->value = $_POST[$metaName];
             // Validate field
-            if (!$element->validate())
-                break;
-            // Get valid tags
-            $tags = $element->tags;
-            // Escape sanitized value to save in db
-            $escapedValue = !empty($tags)
-                // If there are tags must be saved
-                ? wp_kses($element->value, $tags)
-                // Just escape
-                : esc_attr($element->value);
-            // Set value 'zero' if it's 0
-            if (0===$value) {
-                $value = 'zero';
+            if ($element->validate()){
+                // Get valid tags
+                $tags = $element->tags;
+                // Escape sanitized value to save in db
+                $escapedValue = !empty($tags)
+                    // If there are tags must be saved
+                    ? wp_kses($element->value, $tags)
+                    // Just escape
+                    : esc_attr($element->value);
+                // Set value 'zero' if it's 0
+                if (0===$value) {
+                    $value = 'zero';
+                }
+                // Save meta in db
+                update_post_meta((int) $post->ID, $metaName, (string) $escapedValue);
             }
-            // Save meta in db
-            update_post_meta((int) $post->ID, $metaName, (string) $escapedValue);
         }
     }
 

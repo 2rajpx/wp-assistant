@@ -9,8 +9,15 @@ use assistant\helper\Inflector;
 use CPT;
 
 /**
+ * @link https://github.com/2rajpx/wp-assistant/
+ * @license https://github.com/2rajpx/wp-assistant/blob/master/LICENSE
+ */
+/**
+ * Make defaults arguments of the post type
+ * Using camelCase instead of underscore in CPT
  *
- * @link http://code.tutsplus.com/articles/custom-post-type-helper-class--wp-25104
+ * @author Tooraj Khatibi <2rajpx@gmail.com>
+ * @link https://github.com/2rajpx/
  */
 class PostTypeBase extends Object {
 
@@ -21,9 +28,12 @@ class PostTypeBase extends Object {
 
     /**
      * Returns the default labels based on the singular name and plural name.
+     *
      * @param string $singular Lowercase singular name
      * @param string $plural Lowercase plural name
+     *
      * @return array Default labels
+     *
      * @see https://developer.wordpress.org/reference/functions/get_post_type_labels
      */
     public static function defaultLabels($singular, $plural) {
@@ -60,10 +70,13 @@ class PostTypeBase extends Object {
 
     /**
      * Returns the default options based on the singular name and plural name.
+     *
      * @param string $singular Lowercase singular name
      * @param string $plural Lowercase plural name
      * @param string $slug Lowercase slug name
+     *
      * @return array Default options
+     *
      * @see https://developer.wordpress.org/resource/dashicons/
      */
     public static function defaultOptions($singular, $plural, $slug) {
