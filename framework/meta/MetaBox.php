@@ -52,11 +52,43 @@ class MetaBox extends Object
         if (!$this->name) {
             throw new Exception("You have to set the name of the meta box", 1);
         }
+    }
+
+    /**
+     * Register meta box
+     * 
+     */
+    public function register() {
         // Build the fields of the box
         $this->buildFields();
         // Adds actions to their respective WordPress hooks.
         add_action('add_meta_boxes', [$this, 'box']);
         add_action('save_post', [$this, 'save']);
+    }
+
+    /**
+     * 
+     * @param string $fieldName The name of the field
+     * @param WP_Post $post The post object
+     *
+     * @return string The value of the field related to the post
+     */
+    public function get($field, $post) {
+        // If field is not an instance of the field
+        if(!$field instanceof Field){
+            if (!is_string($field)) {
+                // Throw Exception if the field is not a string
+                throw new Exception("First argument must be the name of the field", 1);
+            } elseif (!isset($this->elements[$field])) {
+                // Throw Exception if the field not found in the meta box
+                throw new Exception("$field not found in meta box : $this->name", 1);
+            } else {
+                // Get the object related to the field name
+                $field = $this->elements[$field];
+            }
+        }
+        // Get meta value
+        return PostMeta::get($post, $field->getBindingName());
     }
     
     /**
@@ -66,16 +98,20 @@ class MetaBox extends Object
     protected function buildFields() {
         $elements = [];
         // Loop the elements of the box
-        foreach ($this->elements as $element) {
+        foreach ($this->elements as $key => $element) {
             // If $element is a field
             if (is_array($element)) {
+                $element['name'] = $key;
                 // Set the prefix of the element
                 $element['prefix'] = $this->name;
                 // Build an instance of the field
                 $element = FieldFactory::getInstance($element);
+                // Push the field to $elements
+                $elements[$key] = $element;
+            } else {
+                // Push the element to $elements
+                $elements[] = $element;
             }
-            // Push the element to $elements
-            $elements[] = $element;
         }
         // Set new value to elements 
         $this->elements = $elements;
@@ -170,24 +206,17 @@ class MetaBox extends Object
             if($element instanceof \Closure){
                 // Print result of the callback 
                 echo $element($post, $data);
+                // Jump to the next element
+                continue;
             } elseif ($element instanceof Field) {
-                // Check post is new
-                $isNew = $post->post_status === 'auto-draft';
-                // If post is new and has default value
-                if ($isNew) {
-                    echo $element;
-                } else {
-                    // Get meta name from field
-                    $meta = $element->getBindingName();
+                // If post is not new
+                if ($post->post_status !== 'auto-draft') {
                     // Bind meta value to the field
-                    $element->value = PostMeta::get($post, $meta);
-                    // Print element
-                    echo $element;
+                    $element->value = $this->get($element->name, $post);
                 }
-            } else {
-                // Print element
-                echo $element;
             }
+            // Print the element
+            echo $element;
         }
     }
 
