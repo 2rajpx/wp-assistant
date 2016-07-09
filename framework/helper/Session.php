@@ -12,17 +12,62 @@ namespace assistant\helper;
  * @author Tooraj Khatibi <2rajpx@gmail.com>
  * @link https://github.com/2rajpx/
  */
+/**
+ * @example Call session function
+ * session_cache_expire(30)
+ * Session::cacheExpire(30);
+ *
+ * $_SESSION['test']
+ * $manager = Session::manager('test');
+ *
+ * @example Set types
+ * $_SESSION['test']['foo'] = 'bar'
+ * $manager->set('foo', 'bar');
+ *
+ * $_SESSION['test']['baz'] = 'dib'
+ * $_SESSION['test']['zim'] = 'gir'
+ * $manager->set([
+ *     'baz' => 'dib',
+ *     'zim' => 'gir',
+ * ]);
+ * 
+ * $_SESSION['test']['baz'] = 'bar'
+ * $manager->baz = 'bar';
+ *
+ * @example Get types
+ * $temp = $_SESSION['test']
+ * $temp = $manager->get();
+ * 
+ * $temp = $_SESSION['test']['foo'] ?: null
+ * $temp = $manager->get('foo');
+ * 
+ * $temp = $_SESSION['test']['foo'] ?: 'oops'
+ * $temp = $manager->get('foo', 'oops');
+ *
+ * @example Unset types
+ * unset($_SESSION['test']['foo'])
+ * unset($_SESSION['test']['baz'])
+ * unset($_SESSION['test']['zim'])
+ * $manager->delete('foo', 'baz', 'zim');
+ * 
+ * unset($_SESSION['test'])
+ * $manager->delete();
+ *
+ * @example Call session function
+ * session_destroy();
+ * Session::destroy();
+*/
 class Session
 {
 
-    const MAIN_SEGMENT = '\Vendor\2rajpx\WpAssistant';
+    const MASTER_SEGMENT = '\Vendor\2rajpx\WpAssistant';
 
     /**
      * Control bit to find session is started
      * 
      * @var boolean $_init Holds thte control bit
      */
-    private static $_init;
+    private static $_init = false;
 
     /**
      * The session global variable
@@ -39,15 +84,38 @@ class Session
     protected $_segment;
 
     /**
+     * Run all session functions by camelCase name
+     * 
+     * Example : session_start => Session::satrt()
+     * Example : session_destroy => Session::destroy()
+     * 
+     * @param string $func The session function must be run
+     * @param array $args The arguments must be passed to the function
+     *
+     * @return The result of function
+     */
+    public static function __callStatic($func, $args) {
+        // Turn camelCase to 
+        $func = preg_replace('/([a-z])([A-Z])/', '$1_$2', $func);
+        $func = strtolower($func);
+        $func = 'session_'.$func;
+        if(function_exists($func)){
+            return call_user_func_array($func, $args);
+        }
+        throw new Exception("Function $func is undefiend", 1);
+    }   
+
+    /**
      * Returns session object
      *
      * @param string $segment The name of the segment
      *
      * @return object The session object
      */
-    public static function manager($segment = self::MAIN_SEGMENT) {
-        if (!static::$_init && !session_id()) {
-            session_start();
+    public static function manager($segment = self::MASTER_SEGMENT) {
+        if (!static::$_init && !static::id()) {
+            static::start();
+            static::$_init = true;
         }
         if (!isset(static::$_segments[$segment])) {
             static::$_segments[$segment] = new self($segment);
@@ -70,19 +138,33 @@ class Session
     }
 
     /**
-     * Unset the key from the segment
-     *
-     * @param string $key The name of the key  us.
+     * Magic method
+     * Set data in session
+     * 
+     * @param array $key
+     * @param $value The value that must be saved in session
      */
-    public function __unset($key) {
-        $this->delete($key);
+    public function __set($key, $value) {
+        $this->set($key, $value);
+    }
+
+    /**
+     * Get data from segment
+     * 
+     * @param string $key The key
+     *
+     * @return The value(s)
+     *
+     */
+    public function __get($key) {
+        return $this->get($key);
     }
 
     /**
      * Set data in session
      *
-     * Examplde 1 : set('foo', 'bar')
-     * Examplde 2 : set([
+     * set('foo', 'bar')
+     * set([
      *     'foo' => 'bar',
      *     'baz' => 'dib',
      *     'zim' => 'gir',
@@ -115,9 +197,9 @@ class Session
     /**
      * Get data from segment
      *
-     * Examplde 1 : get() // Ruturns segment
-     * Examplde 2 : get('foo') // Returns foo value or null
-     * Examplde 3 : get('foo', 'bar') // Returns foo value or 'bar'
+     * get() // Ruturns segment
+     * get('foo') // Returns foo value or null
+     * get('foo', 'bar') // Returns foo value or 'bar'
      * 
      * @param string $key The key, It's can be null to return all data
      * @param $alt The alternative value, 
@@ -143,7 +225,11 @@ class Session
     }
 
     /**
-     * Unset key from segment
+     * Unset key|segment from segment|session
+     *
+     * delete('foo') // Delete 'foo' from the segment
+     * delete('foo', 'bar', 'baz') // Delete 'foo', 'bar', 'baz' from the segment
+     * delete() // Unset the segment
      * 
      * @param string $key The key name. You can specify additional
      * strings via second argument, third argument, fourth argument etc.
@@ -151,14 +237,14 @@ class Session
      * @return Segment $this
      */
     public function delete() {
-        try {
+        if(func_num_args()===0){
+            unset($_SESSION[$this->_segment]);
+        } else {
             foreach (func_get_args() as $key) {
                 unset($_SESSION[$this->_segment][$key]);
             }
-        } catch (\Exception $e) {
-
+            return $this;
         }
-        return $this;
     }
 
     /**
