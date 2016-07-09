@@ -6,6 +6,7 @@ use assistant\base\Object;
 use assistant\helper\Naming;
 use assistant\helper\ArrayHelper;
 use assistant\helper\Html;
+use assistant\helper\Session;
 use assistant\exception\ExceptionHandler as Exception;
 
 /**
@@ -153,7 +154,7 @@ abstract class Field extends Object
         // Prepare template
         $this->prepareTemplate();
         // Prepare errors
-        $this->prepareErrors();
+        $this->prepareErrors($this->getFlash());
         // Generate html by attributes
         $this->attributes = Html::array2attrs($this->attributes);
         // Prepare keys and values to replacing in template
@@ -195,8 +196,10 @@ abstract class Field extends Object
                 ? $rule($this)
                 : call_user_func($rule, $this);
         }
+        // Set flash
+        $this->setFlash();
         // Check the field is valid
-        return !$this->hasErrors();
+        return !$this->hasError();
     }
 
     /**
@@ -204,8 +207,8 @@ abstract class Field extends Object
      *
      * @return boolean Does the field have any errors
      */
-    public function hasErrors() {
-        return empty($this->errors);
+    public function hasError() {
+        return !empty($this->errors);
     }
 
     /**
@@ -213,26 +216,42 @@ abstract class Field extends Object
      * 
      * @param string $error The message
      */
-    public function flash($error) {
-        $_SESSION['wp_assistant']['flashes'][$this->getBindingName()][] = $error;
+    public function addError($error) {
+        $this->errors[] = $error;
+    }
+
+    /**
+     * Set errors in session
+     *
+     */
+    protected function setFlash() {
+        if($this->hasError()){
+            Session::manager()->setFlash($this->getBindingName(), $this->errors);
+        }
+    }
+
+    /**
+     * Get errors from session
+     *
+     * @return array The errors set in the session
+     */
+    protected function getFlash() {
+        return Session::manager()->getFlash($this->getBindingName());
     }
 
     /**
      * Prepare errors to display in the field
+     *
+     * @param array $errors The errors
      */
-    protected function prepareErrors(){
-        // Get binding name
-        $bindingName = $this->getBindingName();
-        // Get flashes
-        $errors = ArrayHelper::getValue($_SESSION, "wp_assistant.flashes.$bindingName");
+    protected function prepareErrors($errors){
         // Check errors
-        if($errors){
+        if (!empty($errors)) {
             $html = [];
             foreach ($errors as $error) {
                 $html[] = "<p style='color:red'>$error</p>";
             }
             $this->errors = implode('', $html);
-            unset($_SESSION['wp_assistant']['flashes'][$bindingName]);
         }
     }
 
