@@ -140,6 +140,8 @@ class Session
     /**
      * Magic method
      * Set data in session
+     *
+     * @example $this->foo = 'bar'
      * 
      * @param array $key
      * @param $value The value that must be saved in session
@@ -150,6 +152,8 @@ class Session
 
     /**
      * Get data from segment
+     *
+     * @example return $this->foo
      * 
      * @param string $key The key
      *
@@ -163,8 +167,8 @@ class Session
     /**
      * Set data in session
      *
-     * set('foo', 'bar')
-     * set([
+     * @example set('foo', 'bar')
+     * @example set([
      *     'foo' => 'bar',
      *     'baz' => 'dib',
      *     'zim' => 'gir',
@@ -197,9 +201,9 @@ class Session
     /**
      * Get data from segment
      *
-     * get() // Ruturns segment
-     * get('foo') // Returns foo value or null
-     * get('foo', 'bar') // Returns foo value or 'bar'
+     * @example get() // Ruturns segment
+     * @example get('foo') // Returns foo value or null
+     * @example get('foo', 'bar') // Returns foo value or 'bar'
      * 
      * @param string $key The key, It's can be null to return all data
      * @param $alt The alternative value, 
@@ -261,12 +265,13 @@ class Session
      * Get key value and delete it from segment
      * 
      * @param string $key Flash key
+     * @param $alt The alternative value
      *
      * @return The values related to the key
      */
-    public function getFlash($key) {
+    public function getFlash($key, $alt = null) {
         $key = '_flash_'.$key;
-        $value = $this->get($key);
+        $value = $this->get($key, $alt);
         $this->delete($key);
         return $value;
     }

@@ -2,10 +2,11 @@
 
 namespace assistant\meta;
 
+use assistant\base\Object;
 use assistant\form\FieldFactory;
 use assistant\form\Field;
 use assistant\meta\PostMeta;
-use assistant\base\Object;
+use assistant\helper\Session;
 use assistant\exception\ExceptionHandler as Exception;
 
 class MetaBox extends Object
@@ -22,11 +23,20 @@ class MetaBox extends Object
     protected $title;
 
     /**
-     * The post types that work with the box
-     *
-     * @var array $screen Holds the screen of the box
+     * The description of the meta box
+     * It's printed at the top of the box
+     * 
+     * @var string $description Holds the description of the meta box
      */
-    protected $screen = [];
+    public $description;
+
+    /**
+     * The post type(s) that work with the box
+     *
+     * @var array|string $screen Holds the screen of the box
+     */
+    protected $screen;
+
     
     /**
      * @var string $context Holds the context of the box
@@ -56,6 +66,7 @@ class MetaBox extends Object
 
     /**
      * Register meta box
+     * Prepares fields and adds actions to their respective WordPress hooks.
      * 
      * @return MetaBox $this current meta box obejct
      */
@@ -64,6 +75,7 @@ class MetaBox extends Object
         $this->buildFields();
         // Adds actions to their respective WordPress hooks.
         add_action('add_meta_boxes', [$this, 'box']);
+        add_action('admin_footer', [$this, 'footer']);
         add_action('save_post', [$this, 'save']);
         return $this;
     }
@@ -132,8 +144,8 @@ class MetaBox extends Object
         // Add meta box
         add_meta_box(
             $this->name,
-            $this->title,
-            [$this, 'callback'],
+            __($this->title, 'fa'),
+            [$this, 'render'],
             $this->screen,
             $this->context,
             $this->priority
@@ -147,9 +159,9 @@ class MetaBox extends Object
      */
     public function save($post) {
         global $post;
-        // Deny save if we're doing an auto save
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
-            return;
+        // // Deny save if we're doing an auto save
+        // if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
+        //     return;
         // Deny save if request type is not post
         if (!isset($_POST))
             return;
@@ -161,6 +173,12 @@ class MetaBox extends Object
             return;
         // Deny save if the post not found
         if (!isset($post->ID))
+            return;
+        // Check if it's not an autosave.
+        if (wp_is_post_autosave($post->ID))
+            return;
+        // Check if it's not a revision.
+        if (wp_is_post_revision($post->ID))
             return;
         // if post is a page
         if ('page' == $_POST['post_type']) {
@@ -192,17 +210,22 @@ class MetaBox extends Object
                 }
                 // Save meta in db
                 update_post_meta((int) $post->ID, $metaName, (string) $escapedValue);
+            } else {
+                // Set errors in session
+                Session::manager()->setFlash($field->getBindingName(), $field->errors);
             }
         }
     }
 
     /**
-     * Generates the HTML for the meta box
+     * Generates HTML code
      * 
      * @param object $post WordPress post object
      * @param array $data WordPress meta values
      */
-    public function callback($post, $data) {
+    public function render($post, $data) {
+        // Ptint the deacription of the meta box
+        echo $this->description;
         // Nonce field for some validation
         wp_nonce_field($this->name . '_data', $this->name . '_nonce');
         // Loop through fields
@@ -211,7 +234,10 @@ class MetaBox extends Object
             if ($post->post_status !== 'auto-draft') {
                 // Bind meta value to the field
                 $field->value = $this->get($field->name, $post);
+                // Get errors from session
+                $field->errors = Session::manager()->getFlash($field->getBindingName(), []);
             }
+            // Print field
             echo $field;
         }
     }
