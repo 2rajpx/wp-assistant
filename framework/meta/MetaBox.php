@@ -39,9 +39,9 @@ class MetaBox extends Object
     protected $priority = 'default';
 
     /**
-     * @var array $elements Holds the elements of the box
+     * @var array $fields Holds the fields of the box
      */
-    protected $elements = [];
+    protected $fields = [];
     
     /**
      * Initializes the object.
@@ -57,13 +57,15 @@ class MetaBox extends Object
     /**
      * Register meta box
      * 
+     * @return MetaBox $this current meta box obejct
      */
     public function register() {
         // Build the fields of the box
         $this->buildFields();
         // Adds actions to their respective WordPress hooks.
-        add_action('add_meta_boxes', [&$this, 'box']);
-        add_action('save_post', [&$this, 'save']);
+        add_action('add_meta_boxes', [$this, 'box']);
+        add_action('save_post', [$this, 'save']);
+        return $this;
     }
 
     /**
@@ -73,6 +75,9 @@ class MetaBox extends Object
      * @param WP_Post $post The post object
      *
      * @return string The value of the field related to the post
+     *
+     * @throws Exception if the name of the field is invalid
+     * @throws Exception if the field not found in the meta box
      */
     public function get($field, $post) {
         // If field is not an instance of the field
@@ -80,12 +85,12 @@ class MetaBox extends Object
             if (!is_string($field)) {
                 // Throw Exception if the field is not a string
                 throw new Exception("First argument must be the name of the field", 1);
-            } elseif (!isset($this->elements[$field])) {
+            } elseif (!isset($this->fields[$field])) {
                 // Throw Exception if the field not found in the meta box
-                throw new Exception("$field not found in meta box : $this->name", 1);
+                throw new Exception("$field not found in the meta box : $this->name", 1);
             } else {
                 // Get the object related to the field name
-                $field = $this->elements[$field];
+                $field = $this->fields[$field];
             }
         }
         // Get meta value
@@ -93,29 +98,31 @@ class MetaBox extends Object
     }
     
     /**
-     * Build the objects of the form elements
+     * Build the objects of the form fields
      * This method is invoked at the top of the init method
+     *
+     * @throws Exception if field be invalid
      */
     protected function buildFields() {
-        $elements = [];
-        // Loop the elements of the box
-        foreach ($this->elements as $key => $element) {
-            // If $element is a field
-            if (is_array($element)) {
-                $element['name'] = $key;
-                // Set the prefix of the element
-                $element['prefix'] = $this->name;
+        $fields = [];
+        // Loop the fields of the box
+        foreach ($this->fields as $key => $field) {
+            // If $field is options
+            if (is_array($field)) {
+                // Set the name of the field
+                $field['name'] = $key;
+                // Set the prefix of the field
+                $field['prefix'] = $this->name;
                 // Build an instance of the field
-                $element = FieldFactory::getInstance($element);
-                // Push the field to $elements
-                $elements[$key] = $element;
+                $field = FieldFactory::getInstance($field);
+                // Push the field to $fields
+                $fields[$key] = $field;
             } else {
-                // Push the element to $elements
-                $elements[] = $element;
+                throw new Exception("The field must be an array involved field options", 1);
             }
         }
-        // Set new value to elements 
-        $this->elements = $elements;
+        // Set new value to fields 
+        $this->fields = $fields;
     }
 
     /**
@@ -126,7 +133,7 @@ class MetaBox extends Object
         add_meta_box(
             $this->name,
             $this->title,
-            [&$this, 'callback'],
+            [$this, 'callback'],
             $this->screen,
             $this->context,
             $this->priority
@@ -146,42 +153,39 @@ class MetaBox extends Object
         // Deny save if request type is not post
         if (!isset($_POST))
             return;
-        // Deny save if meta box not found in request
+        // Deny save if nonce not found in the request
         if (!isset($_POST[$this->name . '_nonce']))
             return;
-        // Deny save if our nonce isn't there, or we can't verify it
+        // Deny save if nonce is invalid
         if (!wp_verify_nonce($_POST[$this->name . '_nonce'], $this->name . '_data'))
             return;
-        // Deny save if post not found
+        // Deny save if the post not found
         if (!isset($post->ID))
             return;
         // if post is a page
         if ('page' == $_POST['post_type']) {
-            // Deny if our current user can't edit current page
+            // Deny save if the current user doesn't have permission to edit the current page
             if (!current_user_can('edit_page', $post))
                 return;
         } elseif (!current_user_can('edit_post', $post))
-            // Deny if our current user can't edit current post
+            // Deny save if the current user doesn't have permission to edit the current post
             return;
         // Loop through all fields
-        foreach ($this->elements as $element) {
-            // Gump to next element if it's not a field object
-            if (!$element instanceof Field)
-                continue;
+        foreach ($this->fields as $field) {
             // Get meta name
-            $metaName = $element->getBindingName();
-            // Set the value of the element
-            $element->value = $_POST[$metaName];
+            $metaName = $field->getBindingName();
+            // Set the value of the field
+            $field->value = $_POST[$metaName];
             // Validate field
-            if ($element->validate()){
+            if ($field->validate()){
                 // Get valid tags
-                $tags = $element->tags;
+                $tags = $field->tags;
                 // Escape sanitized value to save in db
                 $escapedValue = !empty($tags)
                     // If there are tags must be saved
-                    ? wp_kses($element->value, $tags)
+                    ? wp_kses($field->value, $tags)
                     // Just escape
-                    : esc_attr($element->value);
+                    : esc_attr($field->value);
                 // Set value 'zero' if it's 0
                 if (0===$value) {
                     $value = 'zero';
@@ -201,23 +205,14 @@ class MetaBox extends Object
     public function callback($post, $data) {
         // Nonce field for some validation
         wp_nonce_field($this->name . '_data', $this->name . '_nonce');
-        // Loop through elements
-        foreach ($this->elements as $element) {
-            // If field is a closure
-            if($element instanceof \Closure){
-                // Print result of the callback 
-                echo $element($post, $data);
-                // Jump to the next element
-                continue;
-            } elseif ($element instanceof Field) {
-                // If post is not new
-                if ($post->post_status !== 'auto-draft') {
-                    // Bind meta value to the field
-                    $element->value = $this->get($element->name, $post);
-                }
+        // Loop through fields
+        foreach ($this->fields as $field) {
+            // If post is not new
+            if ($post->post_status !== 'auto-draft') {
+                // Bind meta value to the field
+                $field->value = $this->get($field->name, $post);
             }
-            // Print the element
-            echo $element;
+            echo $field;
         }
     }
 

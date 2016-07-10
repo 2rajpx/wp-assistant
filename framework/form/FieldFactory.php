@@ -22,7 +22,10 @@ class FieldFactory extends Factory
 	 * Builds the field and returns it
 	 *
 	 * @param array $name field config
+	 *
 	 * @return Field instance
+	 *
+	 * @throws Exception if the name of the field not found in config array
 	 */
 	public static function getInstance(array $config = []){
         // If element has no name

@@ -4,6 +4,7 @@ namespace assistant;
 
 use Exception;
 use assistant\base\Object;
+use assistant\helper\Session;
 
 class Assistant extends Object {
 
@@ -18,6 +19,7 @@ class Assistant extends Object {
     }
 
     public static function config(array $config = []) {
+        Session::start();
         foreach ($config as $key => $value) {
             static::$$key = $value;
         }

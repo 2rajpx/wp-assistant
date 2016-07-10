@@ -86,8 +86,8 @@ class Session
     /**
      * Run all session functions by camelCase name
      * 
-     * Example : session_start => Session::satrt()
-     * Example : session_destroy => Session::destroy()
+     * @example session_start => Session::satrt()
+     * @example session_destroy => Session::destroy()
      * 
      * @param string $func The session function must be run
      * @param array $args The arguments must be passed to the function

@@ -4,7 +4,6 @@ namespace assistant\form;
 
 use assistant\base\Object;
 use assistant\helper\Naming;
-use assistant\helper\ArrayHelper;
 use assistant\helper\Html;
 use assistant\helper\Session;
 use assistant\exception\ExceptionHandler as Exception;
@@ -154,7 +153,7 @@ abstract class Field extends Object
         // Prepare template
         $this->prepareTemplate();
         // Prepare errors
-        $this->prepareErrors($this->getFlash());
+        $this->prepareErrors();
         // Generate html by attributes
         $this->attributes = Html::array2attrs($this->attributes);
         // Prepare keys and values to replacing in template
@@ -244,7 +243,9 @@ abstract class Field extends Object
      *
      * @param array $errors The errors
      */
-    protected function prepareErrors($errors){
+    protected function prepareErrors(){
+        // Get errors
+        $errors = $this->getFlash();
         // Check errors
         if (!empty($errors)) {
             $html = [];
