@@ -2,8 +2,7 @@
 
 namespace assistant;
 
-use Exception;
-use assistant\base\Object;
+use tjpx\helper\Object;
 use assistant\helper\Session;
 
 class Assistant extends Object {
@@ -15,7 +14,7 @@ class Assistant extends Object {
         if (property_exists(static::className(), $name)) {
             return static::$$name;
         }
-        throw new Exception("There is no config with $name name", 1);
+        throw new \Exception("There is no config with $name name", 1);
     }
 
     public static function config(array $config = []) {
@@ -27,13 +26,13 @@ class Assistant extends Object {
 
     public static function inc($file) {
         if (!static::$appDir) {
-            throw new Exception("appDir is not set", 1);
+            throw new \Exception("appDir is not set", 1);
         }
 
         $file = static::$appDir . DS . str_replace(array('/', '\\'), DS, $file) . ".php";
 
         if (!file_exists($file)) {
-            throw new Exception("there is no file in below address :\n $file ", 1);
+            throw new \Exception("there is no file in below address :\n $file ", 1);
         }
 
         require_once $file;

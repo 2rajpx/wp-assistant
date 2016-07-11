@@ -1,7 +1,7 @@
 <?php
 namespace assistant\meta;
 
-use assistant\base\Object;
+use tjpx\helper\base\Object;
 
 /**
  * @link https://github.com/2rajpx/wp-assistant/

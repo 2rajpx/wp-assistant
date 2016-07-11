@@ -2,9 +2,9 @@
 
 namespace assistant\meta;
 
-use assistant\base\Object;
+use tjpx\helper\Object;
+use tjpx\helper\Inflector;
 use assistant\form\FieldFactory;
-use assistant\form\Field;
 use assistant\meta\PostMeta;
 use assistant\helper\Session;
 use assistant\exception\ExceptionHandler as Exception;
@@ -81,32 +81,51 @@ class MetaBox extends Object
     }
 
     /**
+     * Get meta name
+     * The name that integrates the field in server and client
+     * Server using : Get meta name and set element value
+     * Client using : Html element name, id, label assign
+     * 
+     * @param string $fieldName The name of the field
+     *
+     * @return string The binding name
+     *
+     * @throws Exception if the name of the field is invalid
+     * @throws Exception if the field not found in the meta box
+     */
+    public function getMetaName($field) {
+        if (!is_string($field)) {
+            // Throw Exception if the field is not a string
+            throw new Exception("First argument must be the name of the field", 1);
+        }
+        // Check field name existing
+        if (!isset($this->fields[$field])) {
+            // Throw Exception if the field not found in the meta box
+            throw new Exception("$field not found in the meta box : $this->name", 1);
+        }
+        // If the meta name not set in the field
+        if (!isset($this->fields[$field]['metaName'])) {
+            // Binding names start with the name of the box
+            $metaName = Inflector::camelize($this->name);
+            // Append the field name to the binding name
+            $metaName.= Inflector::camelize($field);
+            // Use (_) seperator insetead of camelCase
+            $this->fields[$field]['metaName'] = Inflector::camel2id($metaName, '_');
+        }
+        return $this->fields[$field]['metaName'];
+    }
+
+    /**
      * Get a specific meta value
      * 
      * @param string $fieldName The name of the field
      * @param WP_Post $post The post object
      *
      * @return string The value of the field related to the post
-     *
-     * @throws Exception if the name of the field is invalid
-     * @throws Exception if the field not found in the meta box
      */
-    public function get($field, $post) {
-        // If field is not an instance of the field
-        if(!$field instanceof Field){
-            if (!is_string($field)) {
-                // Throw Exception if the field is not a string
-                throw new Exception("First argument must be the name of the field", 1);
-            } elseif (!isset($this->fields[$field])) {
-                // Throw Exception if the field not found in the meta box
-                throw new Exception("$field not found in the meta box : $this->name", 1);
-            } else {
-                // Get the object related to the field name
-                $field = $this->fields[$field];
-            }
-        }
+    public function getMetaValue($field, $post) {
         // Get meta value
-        return PostMeta::get($post, $field->getBindingName());
+        return PostMeta::get($post, $this->getMetaName($field));
     }
     
     /**
@@ -118,17 +137,13 @@ class MetaBox extends Object
     protected function buildFields() {
         $fields = [];
         // Loop the fields of the box
-        foreach ($this->fields as $key => $field) {
-            // If $field is options
-            if (is_array($field)) {
+        foreach ($this->fields as $field => $options) {
+            // If $options is options
+            if (is_array($options)) {
                 // Set the name of the field
-                $field['name'] = $key;
-                // Set the prefix of the field
-                $field['prefix'] = $this->name;
+                $options['name'] = $this->getMetaName($field);
                 // Build an instance of the field
-                $field = FieldFactory::getInstance($field);
-                // Push the field to $fields
-                $fields[$key] = $field;
+                $fields[$field]['object'] = FieldFactory::getInstance($options);
             } else {
                 throw new Exception("The field must be an array involved field options", 1);
             }
@@ -185,34 +200,38 @@ class MetaBox extends Object
             // Deny save if the current user doesn't have permission to edit the current page
             if (!current_user_can('edit_page', $post))
                 return;
-        } elseif (!current_user_can('edit_post', $post))
+        } elseif (!current_user_can('edit_post', $post)) {
             // Deny save if the current user doesn't have permission to edit the current post
             return;
+        }
         // Loop through all fields
-        foreach ($this->fields as $field) {
+        foreach ($this->fields as $fieldName => $field) {
+            // print_r($_POST);
             // Get meta name
-            $metaName = $field->getBindingName();
+            $metaName = $this->getMetaName($fieldName);
+            // Get field object
+            $fieldObject = $field['object'];
             // Set the value of the field
-            $field->value = $_POST[$metaName];
+            $fieldObject->value = $_POST[$metaName];
             // Validate field
-            if ($field->validate()){
+            if ($fieldObject->validate()){
                 // Get valid tags
-                $tags = $field->tags;
+                $tags = $fieldObject->tags;
                 // Escape sanitized value to save in db
                 $escapedValue = !empty($tags)
                     // If there are tags must be saved
-                    ? wp_kses($field->value, $tags)
+                    ? wp_kses($fieldObject->value, $tags)
                     // Just escape
-                    : esc_attr($field->value);
+                    : esc_attr($fieldObject->value);
                 // Set value 'zero' if it's 0
                 if (0===$value) {
                     $value = 'zero';
                 }
-                // Save meta in db
+                // Update field meta value in database
                 update_post_meta((int) $post->ID, $metaName, (string) $escapedValue);
             } else {
                 // Set errors in session
-                Session::manager()->setFlash($field->getBindingName(), $field->errors);
+                Session::manager()->setFlash($metaName, $fieldObject->errors);
             }
         }
     }
@@ -229,17 +248,33 @@ class MetaBox extends Object
         // Nonce field for some validation
         wp_nonce_field($this->name . '_data', $this->name . '_nonce');
         // Loop through fields
-        foreach ($this->fields as $field) {
+        echo "<table class='form-table'>";
+        foreach ($this->fields as $fieldName => $field) {
+            // Get field object
+            $fieldObject = $field['object'];
             // If post is not new
             if ($post->post_status !== 'auto-draft') {
                 // Bind meta value to the field
-                $field->value = $this->get($field->name, $post);
+                $fieldObject->value = $this->getMetaValue($fieldName, $post);
                 // Get errors from session
-                $field->errors = Session::manager()->getFlash($field->getBindingName(), []);
+                $fieldObject->errors = Session::manager()->getFlash($this->getMetaName($fieldName), []);
             }
             // Print field
-            echo $field;
+            echo $fieldObject;
         }
+        echo "</table>";
+    }
+
+    /**
+     * Footer
+     * 
+     * @param   
+     *
+     * @return 
+     */
+    public function footer() {
+        
+        return ;
     }
 
 }

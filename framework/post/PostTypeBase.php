@@ -2,10 +2,10 @@
 
 namespace assistant\post;
 
-use assistant\base\Object;
+use tjpx\helper\Object;
+use tjpx\helper\ArrayHelper;
+use tjpx\helper\Inflector;
 use assistant\Assistant;
-use assistant\helper\ArrayHelper;
-use assistant\helper\Inflector;
 use CPT;
 
 /**
