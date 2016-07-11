@@ -20,4 +20,9 @@ class Text extends TextBase {
 	
 	use InputTrait;
 
+	/**
+	 * @inheritdoc
+	 */
+    protected $showTypeAttr = true;
+
 }
