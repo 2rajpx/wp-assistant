@@ -48,6 +48,7 @@ class Select extends SelectBase {
                     "<select %s>".
                         "%s".
                     "</select>".
+                    "<span class='cptui-field-description'>%s</span>".
                     "<div>".
                         "%s".
                     "</div>".
@@ -60,6 +61,7 @@ class Select extends SelectBase {
             $this->label,
             $this->attributes,
             $this->options,
+            $this->hint,
             $this->errors
         );
     }

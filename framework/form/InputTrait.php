@@ -38,6 +38,7 @@ trait InputTrait {
                 "</th>".
                 "<td>".
                     "<input %s/>".
+                    "<span class='cptui-field-description'>%s</span>".
                     "<div>".
                         "%s".
                     "</div>".
@@ -49,6 +50,7 @@ trait InputTrait {
             $this->name,
             $this->label,
             $this->attributes,
+            $this->hint,
             $this->errors
         );
     }
